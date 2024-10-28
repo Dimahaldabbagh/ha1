@@ -14,6 +14,8 @@ public class Calculator {
 
     private String latestOperation = "";
 
+    private boolean awaitingSecondOperand = false;
+
     /**
      * @return den aktuellen Bildschirminhalt als String
      */
@@ -29,12 +31,17 @@ public class Calculator {
      * @param digit Die Ziffer, deren Taste gedrückt wurde
      */
     public void pressDigitKey(int digit) {
-        if(digit > 9 || digit < 0) throw new IllegalArgumentException();
+        if (digit > 9 || digit < 0) throw new IllegalArgumentException();
 
-        if(screen.equals("0") || latestValue == Double.parseDouble(screen)) screen = "";
-
+        if (screen.equals("0") || awaitingSecondOperand) screen = "";
         screen = screen + digit;
+
+        // Überprüfen, ob die Eingabelänge über 10 Zeichen ist
+        if (screen.length() > 10) screen = "Error";
+
+        awaitingSecondOperand = false;
     }
+
 
     /**
      * Empfängt den Befehl der C- bzw. CE-Taste (Clear bzw. Clear Entry).
@@ -59,9 +66,14 @@ public class Calculator {
      * auf dem Bildschirm angezeigt. Falls hierbei eine Division durch Null auftritt, wird "Error" angezeigt.
      * @param operation "+" für Addition, "-" für Substraktion, "x" für Multiplikation, "/" für Division
      */
-    public void pressBinaryOperationKey(String operation)  {
+    public void pressBinaryOperationKey(String operation) {
+        if (awaitingSecondOperand) {  // Überprüft, ob eine zweite Operation ohne Eingabe erfolgt
+            screen = "Error";
+            return;
+        }
         latestValue = Double.parseDouble(screen);
         latestOperation = operation;
+        awaitingSecondOperand = true;  // Wartet auf zweiten Operanden
     }
 
     /**
@@ -118,16 +130,23 @@ public class Calculator {
      * und das Ergebnis direkt angezeigt.
      */
     public void pressEqualsKey() {
-        var result = switch(latestOperation) {
+        double result = switch (latestOperation) {
             case "+" -> latestValue + Double.parseDouble(screen);
             case "-" -> latestValue - Double.parseDouble(screen);
             case "x" -> latestValue * Double.parseDouble(screen);
-            case "/" -> latestValue / Double.parseDouble(screen);
-            default -> throw new IllegalArgumentException();
+            case "/" -> Double.parseDouble(screen) == 0 ? Double.POSITIVE_INFINITY : latestValue / Double.parseDouble(screen);
+            default -> Double.parseDouble(screen);
         };
+
         screen = Double.toString(result);
-        if(screen.equals("Infinity")) screen = "Error";
-        if(screen.endsWith(".0")) screen = screen.substring(0,screen.length()-2);
-        if(screen.contains(".") && screen.length() > 11) screen = screen.substring(0, 10);
+
+        // Überprüfung auf wissenschaftliche Notation oder Länge über 10 Zeichen
+        if (screen.equals("Infinity") || screen.contains("E") || screen.length() > 10) {
+            screen = "Error";
+        } else {
+            if (screen.endsWith(".0")) screen = screen.substring(0, screen.length() - 2);
+        }
     }
+
+
 }
